@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    background-color: #f8fafc;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors;
+  }
+  .btn-danger {
+    @apply bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors;
+  }
+  .btn-success {
+    @apply bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors;
+  }
+  .card {
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm;
+  }
+  .input {
+    @apply border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full;
+  }
+}
+
+/* Fishbone SVG animations */
+.fishbone-bone {
+  animation: fadeInBone 0.4s ease forwards;
+  opacity: 0;
+}
+@keyframes fadeInBone {
+  to { opacity: 1; }
+}
+
+/* List row hover */
+.list-row {
+  transition: background-color 0.1s ease;
+}
+
+/* Query box textarea */
+.query-textarea {
+  resize: none;
+  field-sizing: content;
+  max-height: 120px;
+  overflow-y: auto;
+}
