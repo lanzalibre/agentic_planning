@@ -8,6 +8,12 @@ import type {
   ActualThroughput,
   SelfHealingRule,
   Channel,
+  Product,
+  ProductCategory,
+  TimeSeriesData,
+  DerivedSeriesConfig,
+  AggregateConfig,
+  ComputedAggregate,
 } from '../types';
 
 // ─── KPI Widgets ─────────────────────────────────────────────────────────────
@@ -354,13 +360,293 @@ export const actualThroughputsMap: Record<string, ActualThroughput[]> = Object.f
   resources.map(r => [r.id, makeActualThroughputs(r.id, r.plannedThroughput, r.plannedUptimeHours, 10)])
 );
 
+// ─── Demand Analysis ─────────────────────────────────────────────────────────────
+
+// Helper to generate product hierarchy
+function generateProductHierarchy(count: number): Product[] {
+  const level1Categories: ProductCategory[] = ['Apparel', 'Footwear'];
+  const level2Categories: Record<ProductCategory, string[]> = {
+    Apparel: ["Men's Casual", "Women's Casual", "Men's Performance", "Women's Performance", "Kids"],
+    Footwear: ["Men's Running", "Women's Running", "Men's Training", "Women's Training", "Kids"],
+  };
+  const level3Subcategories = [
+    'T-Shirts', 'Polo Shirts', 'Shorts', 'Jackets', 'Pants',
+    'Tanks', 'Sweatshirts', 'Hoodies', 'Compression', 'Baselayer',
+  ];
+  const level4Skus = [
+    'Core', 'Pro', 'Elite', 'Lite', 'Max', 'Ultra', 'Basic', 'Premium', 'Plus', 'Nano',
+  ];
+
+  const products: Product[] = [];
+  for (let i = 0; i < count; i++) {
+    const l1 = level1Categories[i % 2];
+    const l2List = level2Categories[l1];
+    const l2 = l2List[i % l2List.length];
+    const l3 = level3Subcategories[(i * 3) % level3Subcategories.length];
+    const l4 = `SKU-${String(i + 1).padStart(4, '0')}-${level4Skus[i % level4Skus.length]}`;
+
+    // Launch dates spread across 2020-2024, EOL dates spread across 2026-2028
+    const launchYear = 2020 + (i % 5);
+    const launchMonth = 1 + (i % 12);
+    const launchDay = 1 + (i % 28);
+    const eolYear = 2026 + ((i % 3));
+    const eolMonth = 1 + ((i + 3) % 12);
+    const eolDay = 1 + ((i + 7) % 28);
+
+    products.push({
+      id: `prod-${String(i + 1).padStart(4, '0')}`,
+      level1: l1,
+      level2: l2,
+      level3: l3,
+      level4: l4,
+      launchDate: `${launchYear}-${String(launchMonth).padStart(2, '0')}-${String(launchDay).padStart(2, '0')}`,
+      eolDate: `${eolYear}-${String(eolMonth).padStart(2, '0')}-${String(eolDay).padStart(2, '0')}`,
+    });
+  }
+  return products;
+}
+
+export const productHierarchy: Product[] = generateProductHierarchy(200);
+
+// Generate time series data (24 months: 2024-01 to 2025-12)
+function generateTimeSeriesData(products: Product[]): TimeSeriesData[] {
+  const data: TimeSeriesData[] = [];
+  const months: string[] = [];
+  for (let year = 2024; year <= 2025; year++) {
+    for (let month = 1; month <= 12; month++) {
+      months.push(`${year}-${String(month).padStart(2, '0')}`);
+    }
+  }
+
+  for (const product of products) {
+    // Base sales vary by product
+    const baseQty = 100 + (parseInt(product.id.split('-')[1]) % 500);
+    const basePrice = 20 + ((parseInt(product.id.split('-')[1]) * 7) % 80);
+
+    for (const month of months) {
+      const monthNum = parseInt(month.split('-')[1]);
+      // Seasonal variation (higher in months 5-8 for apparel, different for footwear)
+      const seasonalFactor = product.level1 === 'Apparel'
+        ? 0.8 + (monthNum >= 5 && monthNum <= 8 ? 0.5 : 0)
+        : 0.9 + (monthNum >= 3 && monthNum <= 6 ? 0.3 : 0);
+
+      // Varying volatility: 30% stable, 50% moderate, 20% high variance products
+      const volatilityIndex = (parseInt(product.id.split('-')[1]) * 13) % 100;
+      let randomFactorMin, randomFactorMax;
+      if (volatilityIndex < 30) {
+        randomFactorMin = 0.85; randomFactorMax = 1.15; // Stable: ±15%
+      } else if (volatilityIndex < 80) {
+        randomFactorMin = 0.6; randomFactorMax = 1.4;  // Moderate: ±40%
+      } else {
+        randomFactorMin = 0.3; randomFactorMax = 1.7;  // High: ±70%
+      }
+      const randomFactor = randomFactorMin + (Math.random() * (randomFactorMax - randomFactorMin));
+      const salesQty = Math.round(baseQty * seasonalFactor * randomFactor);
+      const salesVolume = salesQty * basePrice;
+
+      // Forecasts with increasing error for higher lags
+      const lag1Error = (Math.random() - 0.5) * 0.2; // ±10%
+      const lag5Error = (Math.random() - 0.5) * 0.4; // ±20%
+      const lag10Error = (Math.random() - 0.5) * 0.6; // ±30%
+      const lag15Error = (Math.random() - 0.5) * 0.8; // ±40%
+
+      const lag1 = Math.round(salesQty * (1 + lag1Error));
+      const lag5 = Math.round(salesQty * (1 + lag5Error));
+      const lag10 = Math.round(salesQty * (1 + lag10Error));
+      const lag15 = Math.round(salesQty * (1 + lag15Error));
+
+      data.push({
+        productId: product.id,
+        period: month,
+        salesQty,
+        salesVolume,
+        forecasts: {
+          lag1,
+          lag5,
+          lag10,
+          lag15,
+        },
+      });
+    }
+  }
+  return data;
+}
+
+export const timeSeriesData: TimeSeriesData[] = generateTimeSeriesData(productHierarchy);
+
+// Default derived series configurations
+export const defaultDerivedSeriesConfigs: DerivedSeriesConfig[] = [
+  {
+    id: 'adjusted-qty',
+    name: 'Adjusted Quantity',
+    formula: 'IF(salesQty < 10, 0, salesQty)',
+    description: 'Zero out quantities below 10 for statistical significance',
+  },
+  {
+    id: 'growth-rate',
+    name: 'Growth Rate',
+    formula: '(currentMonth.salesQty - prevMonth.salesQty) / prevMonth.salesQty',
+    description: 'Month-over-month growth rate',
+  },
+];
+
+// Default aggregate configurations
+export const defaultAggregateConfigs: AggregateConfig[] = [
+  {
+    id: 'total-volume',
+    name: 'Total Volume',
+    formula: 'SUM(last_12_months.salesVolume)',
+    description: 'Sum of sales volume over the last 12 months',
+  },
+  {
+    id: 'total-quantity',
+    name: 'Total Quantity',
+    formula: 'SUM(last_12_months.salesQty)',
+    description: 'Sum of sales quantity over the last 12 months',
+  },
+  {
+    id: 'avg-lag1-error',
+    name: 'Avg Lag 1 Error',
+    formula: 'AVG(ABS(salesQty - forecasts.lag1) / salesQty)',
+    description: 'Average absolute forecast error at lag 1',
+  },
+  {
+    id: 'avg-lag5-error',
+    name: 'Avg Lag 5 Error',
+    formula: 'AVG(ABS(salesQty - forecasts.lag5) / salesQty)',
+    description: 'Average absolute forecast error at lag 5',
+  },
+];
+
+// Compute aggregates by hierarchy level
+export function computeAggregatesByLevel(
+  products: Product[],
+  timeSeries: TimeSeriesData[],
+  volumeType: 'quantity' | 'monetary',
+  hierarchyLevel: 1 | 2 | 3 | 4
+): ComputedAggregate[] {
+  // Group products by hierarchy path at the specified level
+  const groups = new Map<string, Product[]>();
+
+  for (const product of products) {
+    let path: string;
+    if (hierarchyLevel === 1) {
+      path = product.level1;
+    } else if (hierarchyLevel === 2) {
+      path = `${product.level1}/${product.level2}`;
+    } else if (hierarchyLevel === 3) {
+      path = `${product.level1}/${product.level2}/${product.level3}`;
+    } else {
+      path = `${product.level1}/${product.level2}/${product.level3}/${product.level4}`;
+    }
+
+    if (!groups.has(path)) {
+      groups.set(path, []);
+    }
+    groups.get(path)!.push(product);
+  }
+
+  const computed: ComputedAggregate[] = [];
+
+  for (const [path, groupProducts] of groups) {
+    // Calculate volume total for the last 12 months
+    let volumeTotal = 0;
+    let qtyTotal = 0;
+    let monthlyQuantities: number[] = [];
+    let lag1Errors: number[] = [];
+    let lag5Errors: number[] = [];
+
+    for (const product of groupProducts) {
+      const productData = timeSeries.filter(ts => ts.productId === product.id);
+      // Get last 12 months of data
+      const sortedData = productData.sort((a, b) => a.period.localeCompare(b.period));
+      const last12 = sortedData.slice(-12);
+
+      for (const month of last12) {
+        volumeTotal += month.salesVolume;
+        qtyTotal += month.salesQty;
+        monthlyQuantities.push(month.salesQty);
+        if (month.forecasts.lag1 !== null && month.salesQty > 0) {
+          lag1Errors.push(Math.abs(month.salesQty - month.forecasts.lag1) / month.salesQty);
+        }
+        if (month.forecasts.lag5 !== null && month.salesQty > 0) {
+          lag5Errors.push(Math.abs(month.salesQty - month.forecasts.lag5) / month.salesQty);
+        }
+      }
+    }
+
+    // Use quantity if volumeType is 'quantity', otherwise use monetary
+    const volumeForABC = volumeType === 'quantity' ? qtyTotal : volumeTotal;
+
+    // Calculate variance (coefficient of variation) for XYZ classification
+    const meanQty = monthlyQuantities.length > 0
+      ? monthlyQuantities.reduce((a, b) => a + b, 0) / monthlyQuantities.length
+      : 0;
+    const variance = meanQty > 0
+      ? Math.sqrt(monthlyQuantities.reduce((sum, q) => sum + Math.pow(q - meanQty, 2), 0) / monthlyQuantities.length) / meanQty * 100
+      : 0;
+
+    // Calculate aggregate values
+    const avgLag1Error = lag1Errors.length > 0
+      ? lag1Errors.reduce((a, b) => a + b, 0) / lag1Errors.length * 100
+      : 0;
+    const avgLag5Error = lag5Errors.length > 0
+      ? lag5Errors.reduce((a, b) => a + b, 0) / lag5Errors.length * 100
+      : 0;
+
+    computed.push({
+      elementId: path.replace(/\//g, '-'),
+      hierarchyPath: path,
+      volumeTotal: volumeForABC,
+      variancePercent: variance,
+      abcClass: 'C', // Will be set after sorting
+      xyzClass: variance <= 20 ? 'X' : variance <= 40 ? 'Y' : 'Z',
+      aggregates: {
+        'total-volume': volumeTotal,
+        'total-quantity': qtyTotal,
+        'avg-lag1-error': avgLag1Error,
+        'avg-lag5-error': avgLag5Error,
+      },
+    });
+  }
+
+  // Sort by volume for ABC classification
+  const sorted = computed.sort((a, b) => b.volumeTotal - a.volumeTotal);
+
+  // Assign ABC classes (A: top 20%, B: next 40%, C: remaining 40%)
+  const totalVolume = sorted.reduce((sum, item) => sum + item.volumeTotal, 0);
+  let cumulativeVolume = 0;
+  for (const item of sorted) {
+    cumulativeVolume += item.volumeTotal;
+    const cumulativePercent = cumulativeVolume / totalVolume;
+    if (cumulativePercent <= 0.2) {
+      item.abcClass = 'A';
+    } else if (cumulativePercent <= 0.6) {
+      item.abcClass = 'B';
+    } else {
+      item.abcClass = 'C';
+    }
+  }
+
+  // Sort by hierarchy path for consistent display
+  return computed.sort((a, b) => a.hierarchyPath.localeCompare(b.hierarchyPath));
+}
+
+// Pre-computed aggregates at level 4 (SKU level) for initial load
+export const computedAggregatesLevel4: ComputedAggregate[] = computeAggregatesByLevel(
+  productHierarchy,
+  timeSeriesData,
+  'monetary',
+  4
+);
+
 // ─── Pre-loaded Questions ─────────────────────────────────────────────────────
 
 export type PlaybookItem = {
   id: string;
   label: string;
 } & (
-  | { page: import('../types').PageId; tab?: 'lead-times' | 'throughput'; query?: never; action?: never }
+  | { page: import('../types').PageId; tab?: 'lead-times' | 'throughput' | 'abc-xyz' | 'sunburst'; query?: never; action?: never }
   | { query: string; page?: never; tab?: never; action?: never }
   | { action: 'clear-history'; page?: never; query?: never; tab?: never }
 );
@@ -388,6 +674,15 @@ export const preloadedQuestions: {
       { id: 'q-lt-urgent',    label: 'Which lead times need urgent attention?',     query: 'Which lead times need urgent attention?' },
       { id: 'q-tp-mexico',    label: 'Throughput issues in MFG Mexico',            query: 'Show me throughput issues in MFG Mexico' },
       { id: 'q-accept',       label: 'Accept selected changes',                    query: 'Accept selected changes and update the planning system via MCP' },
+    ],
+  },
+  {
+    category: 'Demand Analysis',
+    icon: 'BarChart3',
+    items: [
+      { id: 'q-demand-abc', label: 'Analyze ABC-XYZ classification', page: 'demand-analysis', tab: 'abc-xyz' },
+      { id: 'q-demand-sunburst', label: 'View hierarchy breakdown', page: 'demand-analysis', tab: 'sunburst' },
+      { id: 'q-demand-high-variability', query: 'Which products have high sales variability?' },
     ],
   },
   {

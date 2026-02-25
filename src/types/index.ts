@@ -128,6 +128,7 @@ export type PageId =
   | 'planning-config'
   | 'lead-times'
   | 'throughput'
+  | 'demand-analysis'
   | 'long-term';
 
 export interface QueryMessage {
@@ -136,3 +137,56 @@ export interface QueryMessage {
   type: 'user' | 'assistant';
   timestamp: string;
 }
+
+// ─── Demand Analysis ─────────────────────────────────────────────────────────────
+
+export type ProductCategory = 'Apparel' | 'Footwear';
+
+export interface Product {
+  id: string;
+  level1: ProductCategory;
+  level2: string;  // Category (e.g., "Men's Casual", "Women's Running")
+  level3: string;  // Subcategory (e.g., "T-Shirts", "Sneakers")
+  level4: string;  // SKU
+  launchDate: string;  // YYYY-MM-DD
+  eolDate: string;     // YYYY-MM-DD
+}
+
+export type VolumeType = 'quantity' | 'monetary';
+export type ForecastLag = 'lag1' | 'lag5' | 'lag10' | 'lag15';
+
+export interface TimeSeriesData {
+  productId: string;
+  period: string;  // YYYY-MM (monthly)
+  salesQty: number;
+  salesVolume: number;
+  forecasts: Record<ForecastLag, number | null>;  // Actual forecast values
+}
+
+export interface DerivedSeriesConfig {
+  id: string;
+  name: string;
+  formula: string;  // e.g., "IF(salesQty < 10, 0, salesQty)"
+  description: string;
+}
+
+export interface AggregateConfig {
+  id: string;
+  name: string;
+  formula: string;  // e.g., "SUM(last_12_months.salesVolume)"
+  description: string;
+}
+
+export interface ComputedAggregate {
+  elementId: string;
+  hierarchyPath: string;  // e.g., "Apparel/Men's Casual/T-Shirts/SKU-001"
+  volumeTotal: number;    // Sales volume (quantity or monetary)
+  variancePercent: number; // Sales variance for XYZ classification
+  abcClass: 'A' | 'B' | 'C';
+  xyzClass: 'X' | 'Y' | 'Z';
+  aggregates: Record<string, number>;  // All configured aggregates
+}
+
+export type DemandAnalysisTab = 'abc-xyz' | 'sunburst';
+export type HierarchyLevel = 1 | 2 | 3 | 4;
+export type TimeSeriesAggregate = 'volume' | 'quantity' | 'lag1_error' | 'lag5_error' | 'lag1_error_pct';

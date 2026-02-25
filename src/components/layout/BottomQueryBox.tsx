@@ -8,7 +8,7 @@ import type { PageId } from '../../types';
 export function BottomQueryBox() {
   const {
     queryMessages, addQuery, clearHistory,
-    setCurrentPage, setPlanningConfigTab,
+    setCurrentPage, setPlanningConfigTab, setDemandAnalysisTab,
     pendingMention, clearMention,
   } = useApp();
   const [input, setInput] = useState('');
@@ -83,7 +83,13 @@ export function BottomQueryBox() {
     } else if (item.page) {
       // Navigate item
       setCurrentPage(item.page as PageId);
-      if (item.tab) setPlanningConfigTab(item.tab);
+      if (item.tab) {
+        if (item.tab === 'lead-times' || item.tab === 'throughput') {
+          setPlanningConfigTab(item.tab);
+        } else if (item.tab === 'abc-xyz' || item.tab === 'sunburst') {
+          setDemandAnalysisTab(item.tab);
+        }
+      }
     }
   };
 

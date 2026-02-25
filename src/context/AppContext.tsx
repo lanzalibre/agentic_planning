@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import type { KPIWidget, PageId, QueryMessage } from '../types';
+import type { KPIWidget, PageId, QueryMessage, DemandAnalysisTab } from '../types';
 import { defaultKPIWidgets } from '../data/mockData';
 
 interface AppContextValue {
@@ -12,6 +12,8 @@ interface AppContextValue {
   clearHistory: () => void;
   planningConfigTab: 'lead-times' | 'throughput';
   setPlanningConfigTab: (tab: 'lead-times' | 'throughput') => void;
+  demandAnalysisTab: DemandAnalysisTab;
+  setDemandAnalysisTab: (tab: DemandAnalysisTab) => void;
   pendingMention: string | null;
   appendMention: (mention: string) => void;
   clearMention: () => void;
@@ -29,12 +31,15 @@ const aiResponses: Record<string, string> = {
   risk: "Total at-risk revenue across all 520 exceptions is approximately $8.6M. Breakdown: Material Not Available ~$4.8M, Alternate Location ~$2.1M, Warehouse Stuck ~$1.7M. Highest single SKU exposure: Electronics/Pro/XYZ-5.",
   urgentLT: "Most urgent lead time lanes (>30% deviation): MFG Mexico → DC Louisiana (+47%), MFG Michigan → DC Nebraska (+38%), Supplier CN → MFG Mexico (+36%). I recommend selecting these 3 lanes and submitting updated parameters to Blue Yonder APO immediately.",
   throughputMX: "MFG Mexico throughput issues: Assembly Line A1 at −23% vs plan (electricity fluctuations), Assembly Line B2 at −19% (upstream starvation), CNC Machine C8 at −8% (tooling change). Assembly Line A1 is the most critical — AI suggests reducing planned throughput from 240 to 185 u/h.",
+  demandABC: "ABC-XYZ analysis shows 45 products classified as AX (high value, low variance), 38 as BY, and 22 as CZ (low value, high variability). Top AX products contribute to 22% of total revenue. I recommend focusing forecast improvement efforts on BY products where you can get the best ROI.",
+  demandHighVariance: "High sales variability products (Z-class with >40% variance): 67 products across all categories. Top contributors: Footwear/Men's Running/Sneakers (8 SKUs), Apparel/Kids/T-Shirts (6 SKUs). These products require more frequent forecasting cycles and potentially different inventory strategies (e.g., safety stock buffers).",
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentPage, setCurrentPage] = useState<PageId>('overview');
   const [kpiWidgets, setKpiWidgets] = useState<KPIWidget[]>(defaultKPIWidgets);
   const [planningConfigTab, setPlanningConfigTab] = useState<'lead-times' | 'throughput'>('lead-times');
+  const [demandAnalysisTab, setDemandAnalysisTab] = useState<DemandAnalysisTab>('abc-xyz');
   const [pendingMention, setPendingMention] = useState<string | null>(null);
   const [queryMessages, setQueryMessages] = useState<QueryMessage[]>([
     {
@@ -63,6 +68,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     else if (lower.includes('lead time') || lower.includes('lead-time') || lower.includes('@lt:')) response = aiResponses.lead;
     else if (lower.includes('throughput') || lower.includes('capacity') || lower.includes('resource') || lower.includes('@resource:')) response = aiResponses.throughput;
     else if (lower.includes('exception') || lower.includes('planning run') || lower.includes('@product:')) response = aiResponses.exception;
+    else if (lower.includes('abc-xyz') || lower.includes('abc xyz')) response = aiResponses.demandABC;
+    else if (lower.includes('high sales variability') || lower.includes('high variability')) response = aiResponses.demandHighVariance;
 
     const aiMsg: QueryMessage = {
       id: `a-${Date.now()}`,
@@ -100,6 +107,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       kpiWidgets, setKpiWidgets,
       queryMessages, addQuery, clearHistory,
       planningConfigTab, setPlanningConfigTab,
+      demandAnalysisTab, setDemandAnalysisTab,
       pendingMention, appendMention, clearMention,
     }}>
       {children}

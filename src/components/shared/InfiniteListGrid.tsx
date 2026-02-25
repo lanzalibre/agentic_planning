@@ -14,27 +14,49 @@ export interface InfiniteListGridProps<T extends { id: string }> {
   rows: T[];
   columns: GridColumn<T>[];
   pageSize?: number;
+  onClick?: (row: T) => void;
   onShiftClick?: (row: T) => void;
   exportFilename?: string;
   height?: number;
+  selectedId?: string;
 }
 
 export function InfiniteListGrid<T extends { id: string }>({
   rows,
   columns,
   pageSize = 30,
+  onClick,
   onShiftClick,
   exportFilename,
   height = 400,
+  selectedId,
 }: InfiniteListGridProps<T>) {
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
 
   // Reset when rows change
   useEffect(() => {
     setVisibleCount(pageSize);
+    rowRefs.current.clear();
   }, [rows, pageSize]);
+
+  // When selectedId changes, ensure the row is in the visible set
+  useEffect(() => {
+    if (!selectedId) return;
+    const idx = rows.findIndex(r => r.id === selectedId);
+    if (idx >= 0 && idx >= visibleCount) {
+      setVisibleCount(idx + 1);
+    }
+  }, [selectedId, rows]);
+
+  // Scroll to selected row once it is rendered
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = rowRefs.current.get(selectedId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedId, visibleCount]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -113,17 +135,27 @@ export function InfiniteListGrid<T extends { id: string }>({
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map(row => (
+            {visibleRows.map(row => {
+              const isSelected = row.id === selectedId;
+              return (
               <tr
                 key={row.id}
-                className={`border-b border-gray-50 text-xs transition-colors
-                  ${onShiftClick
-                    ? 'cursor-pointer hover:bg-blue-50 select-none'
-                    : 'hover:bg-gray-50'}`}
+                ref={el => {
+                  if (el) rowRefs.current.set(row.id, el);
+                  else rowRefs.current.delete(row.id);
+                }}
+                className={`border-b text-xs transition-colors
+                  ${isSelected
+                    ? 'bg-blue-100 border-blue-200'
+                    : (onClick || onShiftClick)
+                      ? 'border-gray-50 cursor-pointer hover:bg-blue-50 select-none'
+                      : 'border-gray-50 hover:bg-gray-50'}`}
                 onClick={e => {
                   if (e.shiftKey && onShiftClick) {
                     e.preventDefault();
                     onShiftClick(row);
+                  } else if (!e.shiftKey && onClick) {
+                    onClick(row);
                   }
                 }}
               >
@@ -133,7 +165,7 @@ export function InfiniteListGrid<T extends { id: string }>({
                   </td>
                 ))}
               </tr>
-            ))}
+            );})}
           </tbody>
         </table>
 

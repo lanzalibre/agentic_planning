@@ -1,4 +1,4 @@
-import { Home, Plug, AlertTriangle, SlidersHorizontal, TrendingUp, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Home, Plug, AlertTriangle, SlidersHorizontal, BarChart3, TrendingUp, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import type { PageId } from '../../types';
@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { id: 'overview',           label: 'Overview',         icon: <Home size={20} /> },
   { id: 'exception-analysis', label: 'Planning Runs',    icon: <AlertTriangle size={20} />, badge: 142 },
   { id: 'planning-config',    label: 'Planning Config',  icon: <SlidersHorizontal size={20} />, badge: 40 },
+  { id: 'demand-analysis',    label: 'Demand Analysis',  icon: <BarChart3 size={20} /> },
   { id: 'long-term',          label: 'Long Term Plan',   icon: <TrendingUp size={20} /> },
   { id: 'connections',        label: 'Connections',      icon: <Plug size={20} /> },
 ];

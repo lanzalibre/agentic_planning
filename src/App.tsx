@@ -8,6 +8,7 @@ import { LeadTimesValidation } from './pages/LeadTimesValidation';
 import { ThroughputValidation } from './pages/ThroughputValidation';
 import { LongTermPlanning } from './pages/LongTermPlanning';
 import { PlanningConfiguration } from './pages/PlanningConfiguration';
+import { DemandAnalysis } from './pages/DemandAnalysis';
 
 function AppShell() {
   const { currentPage } = useApp();
@@ -20,6 +21,7 @@ function AppShell() {
       case 'planning-config':   return <PlanningConfiguration />;
       case 'lead-times':        return <LeadTimesValidation />;
       case 'throughput':        return <ThroughputValidation />;
+      case 'demand-analysis':   return <DemandAnalysis />;
       case 'long-term':         return <LongTermPlanning />;
       default:                  return <Overview />;
     }
